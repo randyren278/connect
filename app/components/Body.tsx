@@ -15,10 +15,10 @@ interface Group {
 }
 
 const correctGroups: Group[] = [
-  { title: 'MAKE HAPPY',               words: ['DELIGHT', 'PLEASE', 'SUIT', 'TICKLE'],     color: 'bg-yellow-300' },
-  { title: 'EVADE',                    words: ['DODGE', 'DUCK', 'SHAKE', 'SKIRT'],         color: 'bg-green-300' },
-  { title: 'COMMON VIDEO GAME FEATURES', words: ['BOSS', 'HEALTH', 'LEVEL', 'POWER-UP'],    color: 'bg-blue-300' },
-  { title: 'MOTHER ___',               words: ['EARTH', 'GOOSE', 'MAY I', 'SUPERIOR'],     color: 'bg-purple-300' },
+  { title: 'MAKE HAPPY',               words: ['DELIGHT','PLEASE','SUIT','TICKLE'],    color: 'bg-yellow-300' },
+  { title: 'EVADE',                    words: ['DODGE','DUCK','SHAKE','SKIRT'],        color: 'bg-green-300' },
+  { title: 'COMMON VIDEO GAME FEATURES', words: ['BOSS','HEALTH','LEVEL','POWER-UP'],  color: 'bg-blue-300' },
+  { title: 'MOTHER ___',               words: ['EARTH','GOOSE','MAY I','SUPERIOR'],    color: 'bg-purple-300' },
 ];
 
 export default function Body() {
@@ -30,12 +30,9 @@ export default function Body() {
   const [message, setMessage] = useState<string>('');
   const totalGroups = correctGroups.length;
 
-  // Start/reset game
-  useEffect(() => {
-    resetGame();
-  }, []);
-
-  // Timer tick
+  // Initialize/reset
+  useEffect(() => { resetGame(); }, []);
+  // Timer
   useEffect(() => {
     const id = setInterval(() => setTimer(t => t + 1), 1000);
     return () => clearInterval(id);
@@ -71,7 +68,7 @@ export default function Body() {
 
   function handleSubmit() {
     if (selected.length !== 4) {
-      setMessage('Select exactly 4 cards before submitting.');
+      setMessage('❌ Select exactly 4 cards before submitting.');
       return;
     }
     const chosen = selected.map(i => words[i]);
@@ -80,9 +77,10 @@ export default function Body() {
     );
 
     if (match && !foundGroups.includes(match)) {
+      // record and remove matched words
       setFoundGroups(fg => [...fg, match]);
       setWords(ws => ws.filter(w => !match.words.includes(w)));
-      setMessage(`✅ You found: ${match.title}!`);
+      // no success message anymore
     } else {
       setMistakesRemaining(m => m - 1);
       setMessage('❌ Incorrect group.');
@@ -137,26 +135,23 @@ export default function Body() {
         </span>
       </div>
 
-      {/* Feedback */}
-      {message && (
-        <Alert
-          variant={message.startsWith('❌') ? 'destructive' : 'accent'}
-          className="mb-4 transition-opacity duration-300"
-        >
+      {/* Only show alert on errors */}
+      {message.startsWith('❌') && (
+        <Alert variant="destructive" className="mb-4 transition-opacity duration-300">
           {message}
         </Alert>
       )}
 
-      {/* Found Groups with size animation */}
+      {/* Found Groups */}
       <div className="space-y-4 mb-6 overflow-hidden">
         <AnimatePresence>
-          {foundGroups.map((g, idx) => (
+          {foundGroups.map((g) => (
             <motion.div
               key={g.title}
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: 'easeInOut' }}
               exit={{ scaleX: 0, opacity: 0 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
               className={`${g.color} text-black p-4 rounded-lg origin-left`}
             >
               <h3 className="font-bold text-lg">{g.title}</h3>
@@ -176,14 +171,31 @@ export default function Body() {
         <GameBoard words={words} selected={selected} onCardClick={handleCardClick} />
       </motion.div>
 
-      {/* Final View Results */}
-      {foundGroups.length === totalGroups && (
-        <div className="mt-6 text-center">
-          <Button size="lg" variant="outline">
-            View Results
-          </Button>
-        </div>
-      )}
+      {/* Completion Pop-Up */}
+      <AnimatePresence>
+        {foundGroups.length === totalGroups && (
+          <motion.div
+            className="fixed inset-0 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              transition={{ duration: 0.4 }}
+              className="bg-background p-8 rounded-lg shadow-lg shadow-black/40 text-foreground"
+            >
+              <h2 className="text-3xl mb-4">🎉 Congratulations!</h2>
+              <p className="mb-6">You’ve solved the puzzle.</p>
+              <Button variant="default" onClick={resetGame}>
+                Play Again
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

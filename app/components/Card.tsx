@@ -18,9 +18,9 @@ export default function Card({ word, index, selected, onCardClick }: CardProps) 
         h-20 rounded-lg border
         transition-all duration-200
         ${
-          // Selected cards: accent bg with black text
+          // Selected cards: accent bg with black text in light, white in dark
           selected
-            ? 'bg-accent text-black border-accent shadow-lg shadow-black/10'
+            ? 'bg-accent text-black dark:text-white border-accent shadow-lg shadow-black/20'
             : // Unselected cards: background + conditional text color
               'bg-background border-border hover:scale-105 text-black dark:text-white'
         }
