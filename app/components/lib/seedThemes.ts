@@ -20,7 +20,7 @@ export const seeds = {
     ],
     extreme: [
       'pangrams', 'rare chess openings', 'obsolete SI units',
-      'English words ending in –gry', 'Type‑I supernova precursors',
+      , 'Type‑I supernova precursors',
       // …
     ],
   } as const;

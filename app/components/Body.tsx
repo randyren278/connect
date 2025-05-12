@@ -32,8 +32,8 @@ export default function Body() {
   const [pendingGroup, setPendingGroup] = useState<Group | null>(null);
   const [pendingIndices, setPendingIndices] = useState<number[]>([]);
 
-  const [isRevealing, setIsRevealing] = useState(false); // reveal animation running
-  const [revealed, setRevealed] = useState(false);       // player pressed button
+  const [isRevealing, setIsRevealing] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [revealQueue, setRevealQueue] = useState<Group[]>([]);
 
   /* derived flags */
@@ -48,48 +48,32 @@ export default function Body() {
    *                      REVEAL‑MODE HELPERS                           *
    * ------------------------------------------------------------------ */
 
-  /** full duration (ms) of one wave for `count` cards */
   const waveDurationMs = (count: number) =>
     (0.3 + (count - 1) * 0.2 + 0.4 + 0.3) * 1000;
 
-  /** kick off one wave */
   const queueReveal = (group: Group) => {
-    // Find indices of the words in this group
-    const idxs = [];
+    const idxs: number[] = [];
     for (const word of group.words) {
       const idx = words.indexOf(word);
-      if (idx !== -1) {
-        idxs.push(idx);
-      }
+      if (idx !== -1) idxs.push(idx);
     }
-
     setPendingGroup(group);
     setPendingIndices(idxs);
   };
 
-  /** Process the next reveal in queue */
   const processNextReveal = () => {
-    if (revealQueue.length === 0 || isRevealing) return;
-    
+    if (!revealQueue.length || isRevealing) return;
     setIsRevealing(true);
     const nextGroup = revealQueue[0];
     queueReveal(nextGroup);
-    
-    // Remove this group from the queue
     setRevealQueue(queue => queue.slice(1));
   };
 
-  /** Handle click on "Reveal Answers" */
   const revealAnswers = () => {
     if (isRevealing) return;
-
-    /* groups still unsolved */
     const remaining = correctGroups.filter(g => !foundGroups.includes(g));
     if (!remaining.length) return;
-
-    setRevealed(true);         // permanently hide failure modal
-    
-    // Create a queue of groups to reveal
+    setRevealed(true);
     setRevealQueue(remaining);
   };
 
@@ -129,52 +113,33 @@ export default function Body() {
     return () => clearInterval(id);
   }, []);
 
-  /* Win bookkeeping */
   useEffect(() => {
-    if (
-      loaded &&
-      failureTime === null &&
-      allSolved &&
-      successTime === null
-    ) {
+    if (loaded && failureTime === null && allSolved && successTime === null) {
       setSuccessTime(timer);
     }
   }, [loaded, failureTime, allSolved, timer, successTime]);
 
-  /* Loss bookkeeping */
   useEffect(() => {
     if (loaded && isFailure && failureTime === null) {
       setFailureTime(timer);
     }
   }, [loaded, isFailure, timer, failureTime]);
 
-  /* Process reveal queue when it changes */
   useEffect(() => {
-    if (revealQueue.length > 0 && !isRevealing) {
-      processNextReveal();
-    }
+    if (revealQueue.length > 0 && !isRevealing) processNextReveal();
   }, [revealQueue, isRevealing]);
 
-  /* pending‑group completion */
   useEffect(() => {
     if (!pendingGroup) return;
     const delay = waveDurationMs(pendingIndices.length);
-
     const id = setTimeout(() => {
       setFoundGroups(fg => [...fg, pendingGroup]);
       setWords(ws => ws.filter(w => !pendingGroup.words.includes(w)));
       setPendingGroup(null);
       setPendingIndices([]);
       setIsRevealing(false);
-      
-      // Process next group in queue if any
-      setTimeout(() => {
-        if (revealQueue.length > 0) {
-          processNextReveal();
-        }
-      }, 500); // Small delay between groups
+      setTimeout(() => { if (revealQueue.length) processNextReveal(); }, 500);
     }, delay);
-
     return () => clearTimeout(id);
   }, [pendingGroup, pendingIndices, revealQueue]);
 
@@ -186,9 +151,7 @@ export default function Body() {
     setSelected(sel =>
       sel.includes(idx)
         ? sel.filter(i => i !== idx)
-        : sel.length < 4
-        ? [...sel, idx]
-        : sel
+        : sel.length < 4 ? [...sel, idx] : sel
     );
   };
 
@@ -214,15 +177,14 @@ export default function Body() {
     );
 
     if (match && !foundGroups.includes(match)) {
+      setIsRevealing(true);
       setPendingGroup(match);
       setPendingIndices(selected);
       setSelected([]);
       setMessage('');
     } else {
       const oneAway = correctGroups.some(
-        g =>
-          !foundGroups.includes(g) &&
-          g.words.filter(w => chosen.includes(w)).length === 3
+        g => !foundGroups.includes(g) && g.words.filter(w => chosen.includes(w)).length === 3
       );
       setMistakesRemaining(m => m - 1);
       setMessage(oneAway ? '⚠️ One away' : '❌ Incorrect group.');
@@ -287,9 +249,7 @@ export default function Body() {
         <Alert
           variant={message.startsWith('❌') ? 'destructive' : undefined}
           className={`mb-4 transition-opacity duration-300 ${
-            message.startsWith('⚠️')
-              ? 'border-yellow-400 bg-yellow-100 text-black'
-              : ''
+            message.startsWith('⚠️') ? 'border-yellow-400 bg-yellow-100 text-black' : ''
           }`}
         >
           {message}
@@ -333,7 +293,7 @@ export default function Body() {
       )}
 
       {/* Bottom Play‑Again (after reveal) */}
-      {loaded && (allSolved || (revealed && revealQueue.length === 0 && !isRevealing)) && (
+      {loaded && (allSolved || (revealed && !isRevealing && revealQueue.length === 0)) && (
         <div className="flex justify-center mt-8">
           <Button variant="default" onClick={fetchPuzzle}>
             Play Again
@@ -361,9 +321,14 @@ export default function Body() {
             >
               <h2 className="text-3xl mb-4">🎉 Congratulations!</h2>
               <p className="mb-4">You solved the puzzle in {successTime} s.</p>
-              <Button variant="default" onClick={fetchPuzzle}>
-                Play Again
-              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setRevealed(true)}>
+                  View
+                </Button>
+                <Button variant="default" onClick={fetchPuzzle}>
+                  Play Again
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
