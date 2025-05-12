@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   title: "Connections",
   description: "A 4-word word-association puzzle game built with Next.js",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 
@@ -32,11 +32,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <Head>
-        <link rel="icon" href="/public/favicon.ico" />
+        <link rel="icon" href="/favicon.png" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="description" content="A 4-word word-association puzzle game built with Next.js" />
         <meta name="apple-mobile-web-app-title" content="Connections" />
-        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </Head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
