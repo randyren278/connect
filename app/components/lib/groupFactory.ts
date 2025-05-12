@@ -50,7 +50,7 @@ export async function buildGroup(diff: Difficulty): Promise<Group> {
   let themeToTry = theme;
   let attemptsLeft = 5; // Try a few times with different parameters
   
-  while (attemptsLeft > 0 && !validateWordSet(candidateWords, theme)) {
+  while (attemptsLeft > 0 && themeToTry && !validateWordSet(candidateWords, themeToTry)) {
     candidateWords = await getSynonyms(themeToTry);
     
     // If we get less than 4 words, try with a modified theme
@@ -75,7 +75,7 @@ export async function buildGroup(diff: Difficulty): Promise<Group> {
   
   // 4. Freeze & cache it
   const group: Group = {
-    title: theme.toUpperCase(),
+    title: (theme ?? 'UNKNOWN THEME').toUpperCase(),
     words: candidateWords,
     color: palette[diff],
   };
