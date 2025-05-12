@@ -1,6 +1,6 @@
 // lib/groupFactory.ts
 import { seeds, Difficulty } from './seedThemes';
-import { getSynonyms } from './wordApi';
+import { getSynonyms } from './seedThemes';
 
 type Group = { 
   title: string; 
