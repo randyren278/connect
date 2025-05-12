@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GameBoard from './GameBoard';
 import Timer from './Timer';
@@ -18,6 +18,8 @@ export default function Body() {
   /* ------------------------------------------------------------------ *
    *                             STATE                                  *
    * ------------------------------------------------------------------ */
+  const usedGroupKeys = useRef<string[]>([]);
+
   const [correctGroups, setCorrectGroups] = useState<Group[]>([]);
   const [words, setWords] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -45,9 +47,8 @@ export default function Body() {
   const ease = [0.4, 0.0, 0.2, 1];
 
   /* ------------------------------------------------------------------ *
-   *                      REVEAL‑MODE HELPERS                           *
+   *                      REVEAL-MODE HELPERS                           *
    * ------------------------------------------------------------------ */
-
   const waveDurationMs = (count: number) =>
     (0.3 + (count - 1) * 0.2 + 0.4 + 0.3) * 1000;
 
@@ -57,13 +58,13 @@ export default function Body() {
       const idx = words.indexOf(word);
       if (idx !== -1) idxs.push(idx);
     }
+    setIsRevealing(true);
     setPendingGroup(group);
     setPendingIndices(idxs);
   };
 
   const processNextReveal = () => {
-    if (!revealQueue.length || isRevealing) return;
-    setIsRevealing(true);
+    if (revealQueue.length === 0 || isRevealing) return;
     const nextGroup = revealQueue[0];
     queueReveal(nextGroup);
     setRevealQueue(queue => queue.slice(1));
@@ -78,14 +79,31 @@ export default function Body() {
   };
 
   /* ------------------------------------------------------------------ *
-   *                       LIFE‑CYCLE / FETCH                           *
+   *                       LIFE-CYCLE / FETCH                           *
    * ------------------------------------------------------------------ */
-
   const fetchPuzzle = async () => {
     try {
-      const res = await fetch('/api/connections', { cache: 'no-store' });
-      if (!res.ok) throw new Error('API error');
-      const data: { groups: Group[] } = await res.json();
+      let data: { groups: Group[] };
+      let attempt = 0;
+
+      do {
+        const res = await fetch('/api/connections', { cache: 'no-store' });
+        if (!res.ok) throw new Error('API error');
+        data = await res.json();
+
+        const keys = data.groups.map(g =>
+          [...g.words].sort().join('|')
+        );
+        // retry if any key is in history
+        if (!keys.some(k => usedGroupKeys.current.includes(k))) {
+          usedGroupKeys.current = [
+            ...usedGroupKeys.current,
+            ...keys
+          ].slice(-40);
+          break;
+        }
+        attempt++;
+      } while (attempt < 10);
 
       setCorrectGroups(data.groups);
       setWords(shuffleArray(data.groups.flatMap(g => g.words)));
@@ -126,7 +144,9 @@ export default function Body() {
   }, [loaded, isFailure, timer, failureTime]);
 
   useEffect(() => {
-    if (revealQueue.length > 0 && !isRevealing) processNextReveal();
+    if (revealQueue.length > 0 && !isRevealing) {
+      processNextReveal();
+    }
   }, [revealQueue, isRevealing]);
 
   useEffect(() => {
@@ -138,7 +158,9 @@ export default function Body() {
       setPendingGroup(null);
       setPendingIndices([]);
       setIsRevealing(false);
-      setTimeout(() => { if (revealQueue.length) processNextReveal(); }, 500);
+      setTimeout(() => {
+        if (revealQueue.length > 0) processNextReveal();
+      }, 500);
     }, delay);
     return () => clearTimeout(id);
   }, [pendingGroup, pendingIndices, revealQueue]);
@@ -146,12 +168,13 @@ export default function Body() {
   /* ------------------------------------------------------------------ *
    *                               ACTIONS                              *
    * ------------------------------------------------------------------ */
-
   const handleCardClick = (idx: number) => {
     setSelected(sel =>
       sel.includes(idx)
         ? sel.filter(i => i !== idx)
-        : sel.length < 4 ? [...sel, idx] : sel
+        : sel.length < 4
+        ? [...sel, idx]
+        : sel
     );
   };
 
@@ -175,27 +198,25 @@ export default function Body() {
     const match = correctGroups.find(
       g => g.words.every(w => chosen.includes(w))
     );
-
     if (match && !foundGroups.includes(match)) {
-      setIsRevealing(true);
-      setPendingGroup(match);
-      setPendingIndices(selected);
+      queueReveal(match);
       setSelected([]);
       setMessage('');
-    } else {
-      const oneAway = correctGroups.some(
-        g => !foundGroups.includes(g) && g.words.filter(w => chosen.includes(w)).length === 3
-      );
-      setMistakesRemaining(m => m - 1);
-      setMessage(oneAway ? '⚠️ One away' : '❌ Incorrect group.');
-      setSelected([]);
+      return;
     }
+    const oneAway = correctGroups.some(
+      g =>
+        !foundGroups.includes(g) &&
+        g.words.filter(w => chosen.includes(w)).length === 3
+    );
+    setMistakesRemaining(m => m - 1);
+    setMessage(oneAway ? '⚠️ One away' : '❌ Incorrect group.');
+    setSelected([]);
   };
 
   /* ------------------------------------------------------------------ *
    *                               RENDER                               *
    * ------------------------------------------------------------------ */
-
   return (
     <div className="p-6 font-semibold">
       {/* Controls */}
@@ -249,7 +270,9 @@ export default function Body() {
         <Alert
           variant={message.startsWith('❌') ? 'destructive' : undefined}
           className={`mb-4 transition-opacity duration-300 ${
-            message.startsWith('⚠️') ? 'border-yellow-400 bg-yellow-100 text-black' : ''
+            message.startsWith('⚠️')
+              ? 'border-yellow-400 bg-yellow-100 text-black'
+              : ''
           }`}
         >
           {message}
@@ -292,8 +315,8 @@ export default function Body() {
         </motion.div>
       )}
 
-      {/* Bottom Play‑Again (after reveal) */}
-      {loaded && (allSolved || (revealed && !isRevealing && revealQueue.length === 0)) && (
+      {/* Bottom Play-Again only after modal dismissed */}
+      {loaded && revealed && revealQueue.length === 0 && !isRevealing && (
         <div className="flex justify-center mt-8">
           <Button variant="default" onClick={fetchPuzzle}>
             Play Again
@@ -322,18 +345,18 @@ export default function Body() {
               <h2 className="text-3xl mb-4">🎉 Congratulations!</h2>
               <p className="mb-4">You solved the puzzle in {successTime} s.</p>
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setRevealed(true)}>
-                  View
-                </Button>
                 <Button variant="default" onClick={fetchPuzzle}>
                   Play Again
+                </Button>
+                <Button variant="default" onClick={() => setRevealed(true)}>
+                  View
                 </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
 
-        {/* Failure modal (suppressed after Reveal click) */}
+        {/* Failure modal */}
         {loaded && isFailure && failureTime !== null && !revealed && (
           <motion.div
             className="fixed inset-0 flex items-center justify-center z-50"
