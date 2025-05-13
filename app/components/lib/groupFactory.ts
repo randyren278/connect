@@ -1,85 +1,62 @@
-// lib/groupFactory.ts
-import { seeds, Difficulty } from './seedThemes';
-import { getSynonyms } from './seedThemes';
+// lib/groupFactory.ts (or wherever this file is)
+import { seeds, getSynonyms, Difficulty } from './seedThemes';
 
-type Group = { 
-  title: string; 
-  words: string[]; 
-  color: string 
+
+type Group = {
+  title: string;
+  words: string[];
+  color: string;
 };
 
-const palette = {
+const palette: Record<Difficulty, string> = {
   easy: 'bg-yellow-300',
   medium: 'bg-green-300',
   hard: 'bg-blue-300',
   extreme: 'bg-purple-300',
-} as const;
+};
 
-const inMemoryCache: Record<string, Group | undefined> = {};
 
-/**
- * Verify that words are truly relevant to the theme
- */
-function validateWordSet(words: string[], theme: string): boolean {
-  // Basic validation - ensure we have 4 words
-  if (words.length !== 4) return false;
-  
-  // Ensure no duplicates
-  const uniqueWords = new Set(words);
-  if (uniqueWords.size !== 4) return false;
-  
-  // Ensure no ultra-short words
-  if (words.some(word => word.length <= 2)) return false;
-  
-  return true;
+/* simple in‑memory cache so we don’t regenerate the same theme repeatedly */
+const cache: Record<string, Group | undefined> = {};
+
+/* -------------------------------------------------------------- *
+ *  Basic sanity checks for a 4‑word set                           *
+ * -------------------------------------------------------------- */
+function isValid(words: string[]): boolean {
+  return (
+    words.length === 4 &&
+    new Set(words).size === 4 &&            // no duplicates
+    words.every(w => w.length > 2)          // no ultra‑short tokens
+  );
 }
 
-/**
- * Build (or return cached) 4-word group for a difficulty
- */
+/* -------------------------------------------------------------- *
+ *  Build (or return cached) 4‑word group for a given difficulty   *
+ * -------------------------------------------------------------- */
 export async function buildGroup(diff: Difficulty): Promise<Group> {
-  // 1. Pick a random seed theme word/phrase
-  const theme = seeds[diff][Math.floor(Math.random() * seeds[diff].length)];
-  
-  // 2. Use it as cache key
-  const cacheKey = `${diff}:${theme}`;
-  if (inMemoryCache[cacheKey]) return inMemoryCache[cacheKey]!;
-  
-  // 3. Try to get words for this theme, with retries
-  let candidateWords: string[] = [];
-  let themeToTry = theme;
-  let attemptsLeft = 5; // Try a few times with different parameters
-  
-  while (attemptsLeft > 0 && themeToTry && !validateWordSet(candidateWords, themeToTry)) {
-    candidateWords = await getSynonyms(themeToTry);
-    
-    // If we get less than 4 words, try with a modified theme
-    if (candidateWords.length < 4) {
-      // Try variations of the theme to get better results
-      if (attemptsLeft % 2 === 0) {
-        themeToTry = `${theme} examples` as typeof theme;
-      } else {
-        themeToTry = `common ${theme}` as typeof theme;
-      }
+  const themes = seeds[diff];                  // list of titles for this bucket
+  let attempts = 0;
+
+  while (attempts < themes.length) {
+    const theme = themes[Math.floor(Math.random() * themes.length)];
+    const cacheKey = `${diff}:${theme}`;
+    if (cache[cacheKey]) return cache[cacheKey]!;
+
+    const words = await getSynonyms(theme);
+
+    if (isValid(words)) {
+      const group: Group = {
+        title: theme.toUpperCase(),
+        words,
+        color: palette[diff],
+      };
+      cache[cacheKey] = group;
+      return group;
     }
-    
-    // Ensure we have exactly 4 words
-    candidateWords = [...new Set(candidateWords)].slice(0, 4);
-    attemptsLeft--;
+
+    attempts++;
   }
-  
-  // If we still don't have 4 words, throw an error
-  if (candidateWords.length < 4) {
-    throw new Error(`Not enough words for ${theme}`);
-  }
-  
-  // 4. Freeze & cache it
-  const group: Group = {
-    title: (theme ?? 'UNKNOWN THEME').toUpperCase(),
-    words: candidateWords,
-    color: palette[diff],
-  };
-  
-  inMemoryCache[cacheKey] = group;
-  return group;
+
+  /* If we somehow failed to find any valid theme (shouldn’t happen) */
+  throw new Error(`Unable to build a valid ${diff} group after ${attempts} tries`);
 }
