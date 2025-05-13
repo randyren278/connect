@@ -1,15 +1,16 @@
+// app/components/Body.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import GameBoard from './GameBoard';
 import Timer from './Timer';
+import GameBoard from './GameBoard';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { shuffleArray } from '@/lib/shuffle';
 
 /* ------------------------------------------------------------------ *
- *                              TYPES                                 *
+ *  TYPES                                                             *
  * ------------------------------------------------------------------ */
 interface Group {
   title: string;
@@ -18,41 +19,43 @@ interface Group {
 }
 
 /* ------------------------------------------------------------------ *
- *                   LOCAL‑STORAGE  HELPERS                            *
+ *  LOCAL‑STORAGE KEYS & HELPERS                                      *
  * ------------------------------------------------------------------ */
 const LS_THEMES = 'conn_used_themes';     // last 40 theme titles
-const LS_KEYS   = 'conn_used_groupKeys';  // last 40 group word‑sets
+const LS_KEYS   = 'conn_used_groupKeys';  // last 40 group keys
 
-/** "CARD SUITS" ⇒ "CARD SUITS" (single‑spaced, upper‑case) */
-const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase();
+const norm = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
+const keyOf = (ws: readonly string[]) => [...ws].map(norm).sort().join('|');
 
-/** "CLUBS, HEARTS, …"  ⇒ unique key for the word‑set (order‑independent). */
-const keyOf = (ws: readonly string[]) =>
-  [...ws].map(norm).sort().join('|');
-
-const load = (k: string): string[] => {
+const loadArr = (key: string): string[] => {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(k);
+    const raw = localStorage.getItem(key);
     const arr = raw ? (JSON.parse(raw) as string[]) : [];
     return Array.isArray(arr) ? arr.slice(-40) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
-const save = (k: string, arr: string[]) => {
-  if (typeof window === 'undefined') return;
-  try { localStorage.setItem(k, JSON.stringify(arr.slice(-40))); } catch {}
+const saveArr = (key: string, arr: string[]) => {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(key, JSON.stringify(arr.slice(-40)));
+    } catch {
+      /* ignore quota errors */
+    }
+  }
 };
 
 /* ------------------------------------------------------------------ *
- *                              BODY                                  *
+ *  COMPONENT                                                         *
  * ------------------------------------------------------------------ */
 export default function Body() {
-  /* Persistent “no‑repeat” histories (40 max) — live in localStorage. */
   const usedThemesRef = useRef<string[]>([]);
   const usedKeysRef   = useRef<string[]>([]);
 
-  /* ---------------------------  UI  STATE -------------------------- */
+  /* ----------------------------- STATE ---------------------------- */
   const [correctGroups, setCorrectGroups] = useState<Group[]>([]);
   const [words,         setWords]         = useState<string[]>([]);
   const [selected,      setSelected]      = useState<number[]>([]);
@@ -64,19 +67,19 @@ export default function Body() {
   const [successT, setSuccessT] = useState<number | null>(null);
   const [failureT, setFailureT] = useState<number | null>(null);
 
-  const [pendingG,  setPendingG]  = useState<Group | null>(null);
-  const [pendIdx,   setPendIdx]   = useState<number[]>([]);
-  const [revealing, setRevealing] = useState(false);
-  const [revealed,  setRevealed]  = useState(false);
-  const [queue,     setQueue]     = useState<Group[]>([]);
+  const [pendingG,   setPendingG]   = useState<Group | null>(null);
+  const [pendingIdx, setPendingIdx] = useState<number[]>([]);
+  const [revealing,  setRevealing]  = useState(false);
+  const [revealed,   setRevealed]   = useState(false);
+  const [queue,      setQueue]      = useState<Group[]>([]);
 
-  /* Derived */
+  /* derived flags */
   const loaded    = correctGroups.length > 0;
   const failed    = mistakes <= 0 && foundGroups.length < correctGroups.length;
   const allSolved = foundGroups.length === correctGroups.length;
 
   /* ------------------------------------------------------------------ *
-   *                         PUZZLE FETCH                               *
+   *  FETCH PUZZLE WITH NO‑REPEAT LOGIC                                *
    * ------------------------------------------------------------------ */
   const fetchPuzzle = async () => {
     try {
@@ -88,44 +91,44 @@ export default function Body() {
         if (!res.ok) throw new Error('API error');
         data = await res.json();
 
-        /* --- repeat‑protection tests --- */
-        const newThemes = data.groups.map(g => norm(g.title));
-        const newKeys   = data.groups.map(g => keyOf(g.words));
+        const themes = data.groups.map(g => norm(g.title));
+        const keys   = data.groups.map(g => keyOf(g.words));
 
-        const themeConflict = newThemes.some(t => usedThemesRef.current.includes(t));
-        const keyConflict   = newKeys.  some(k => usedKeysRef.current  .includes(k));
+        const repeatTheme = themes.some(t => usedThemesRef.current.includes(t));
+        const repeatKey   = keys.some(k => usedKeysRef.current.includes(k));
+        const dupesInPuzzle =
+          new Set(data.groups.flatMap(g => g.words)).size !==
+          data.groups.flatMap(g => g.words).length;
 
-        const allWords = data.groups.flatMap(g => g.words);
-        const dupesInPuzzle = allWords.length !== new Set(allWords).size;
-
-        if (!themeConflict && !keyConflict && !dupesInPuzzle) {
-          // accept & record
-          usedThemesRef.current = [...usedThemesRef.current, ...newThemes].slice(-40);
-          usedKeysRef.current   = [...usedKeysRef.current,   ...newKeys  ].slice(-40);
-          save(LS_THEMES, usedThemesRef.current);
-          save(LS_KEYS,   usedKeysRef.current);
+        if (!repeatTheme && !repeatKey && !dupesInPuzzle) {
+          usedThemesRef.current = [...usedThemesRef.current, ...themes].slice(-40);
+          usedKeysRef.current   = [...usedKeysRef.current,   ...keys  ].slice(-40);
+          saveArr(LS_THEMES, usedThemesRef.current);
+          saveArr(LS_KEYS,   usedKeysRef.current);
           break;
         }
         tries++;
       } while (tries < 10);
 
-      /* ---------- initialise board ---------- */
       setCorrectGroups(data.groups);
       setWords(shuffleArray(data.groups.flatMap(g => g.words)));
       setSelected([]); setFoundGroups([]);
       setMistakes(4); setTimer(0); setMsg('');
       setSuccessT(null); setFailureT(null);
-      setPendingG(null); setPendIdx([]);
+      setPendingG(null); setPendingIdx([]);
       setRevealing(false); setRevealed(false); setQueue([]);
     } catch (e) {
-      console.error(e); setMsg('❌ Could not load puzzle. Refresh?');
+      console.error(e);
+      setMsg('❌ Could not load puzzle. Please refresh.');
     }
   };
 
-  /* ---------------------------  EFFECTS ---------------------------- */
+  /* ------------------------------------------------------------------ *
+   *  EFFECTS                                                           *
+   * ------------------------------------------------------------------ */
   useEffect(() => {
-    usedThemesRef.current = load(LS_THEMES);
-    usedKeysRef.current   = load(LS_KEYS);
+    usedThemesRef.current = loadArr(LS_THEMES);
+    usedKeysRef.current   = loadArr(LS_KEYS);
     fetchPuzzle();
   }, []);
 
@@ -134,20 +137,17 @@ export default function Body() {
     return () => clearInterval(id);
   }, []);
 
-  /* score bookkeeping */
   useEffect(() => { if (loaded && allSolved) setSuccessT(t => t ?? timer); },
     [loaded, allSolved, timer]);
   useEffect(() => { if (loaded && failed)   setFailureT(t => t ?? timer); },
     [loaded, failed, timer]);
 
-  /* ------------------------------------------------------------------ *
-   *                    REVEAL / WAVE  HELPERS                          *
-   * ------------------------------------------------------------------ */
+  /* --------------------- wave / reveal helpers -------------------- */
   const waveMs = (n: number) => (0.3 + (n - 1) * 0.2 + 0.7) * 1000;
 
   const queueReveal = (g: Group) => {
     const idxs = g.words.map(w => words.indexOf(w)).filter(i => i !== -1);
-    setRevealing(true); setPendingG(g); setPendIdx(idxs);
+    setRevealing(true); setPendingG(g); setPendingIdx(idxs);
   };
 
   const nextReveal = () => {
@@ -163,31 +163,46 @@ export default function Body() {
     const id = setTimeout(() => {
       setFoundGroups(f => [...f, pendingG]);
       setWords(w => w.filter(v => !pendingG.words.includes(v)));
-      setPendingG(null); setPendIdx([]); setRevealing(false);
+      setPendingG(null); setPendingIdx([]); setRevealing(false);
       setTimeout(() => { if (queue.length) nextReveal(); }, 400);
-    }, waveMs(pendIdx.length));
+    }, waveMs(pendingIdx.length));
     return () => clearTimeout(id);
-  }, [pendingG, pendIdx, queue]);
+  }, [pendingG, pendingIdx, queue]);
 
-  /* ---------------------------  ACTIONS ---------------------------- */
+  /* ------------------------------------------------------------------ *
+   *  ACTIONS                                                           *
+   * ------------------------------------------------------------------ */
   const click = (i: number) =>
-    setSelected(sel => sel.includes(i) ? sel.filter(x => x !== i)
-                                       : sel.length < 4 ? [...sel, i] : sel);
+    setSelected(sel =>
+      sel.includes(i) ? sel.filter(x => x !== i) : sel.length < 4 ? [...sel, i] : sel
+    );
 
-  const deselect = () => { setSelected([]); setMsg(''); };
-  const shuffle  = () => { setWords(shuffleArray(words)); deselect(); };
+  const deselect = () => setSelected([]);
+  const shuffle  = () => {
+    setWords(shuffleArray(words));
+    setSelected([]);
+    setMsg('');
+  };
 
   const submit = () => {
-    if (selected.length !== 4) { setMsg('❌ Select exactly 4'); return; }
+    if (selected.length !== 4) {
+      setMsg('❌ Select exactly 4 cards before submitting.');
+      return;
+    }
     const chosen = selected.map(i => words[i]);
-    const match  = correctGroups.find(g => g.words.every(w => chosen.includes(w)));
+    const match = correctGroups.find(g => g.words.every(w => chosen.includes(w)));
 
     if (match && !foundGroups.includes(match)) {
-      queueReveal(match); deselect(); return;
+      queueReveal(match);
+      deselect();
+      setMsg('');
+      return;
     }
 
     const oneAway = correctGroups.some(
-      g => !foundGroups.includes(g) && g.words.filter(w => chosen.includes(w)).length === 3
+      g =>
+        !foundGroups.includes(g) &&
+        g.words.filter(w => chosen.includes(w)).length === 3
     );
     setMistakes(m => m - 1);
     setMsg(oneAway ? '⚠️ One away' : '❌ Incorrect group.');
@@ -200,7 +215,9 @@ export default function Body() {
     if (remain.length) { setRevealed(true); setQueue(remain); }
   };
 
-  /* ------------------------------  UI  ----------------------------- */
+  /* ------------------------------------------------------------------ *
+   *  RENDER                                                            *
+   * ------------------------------------------------------------------ */
   return (
     <div className="p-6 font-semibold">
       {/* Controls */}
@@ -221,17 +238,23 @@ export default function Body() {
         Mistakes:
         <span className="ml-2 inline-flex space-x-1">
           {Array.from({ length: 4 }).map((_, i) => (
-            <span key={i} className={`inline-block h-3 w-3 rounded-full
-              ${i < mistakes ? 'bg-foreground' : 'bg-gray-300'}`} />
+            <span key={i}
+              className={`inline-block h-3 w-3 rounded-full
+                ${i < mistakes ? 'bg-foreground' : 'bg-gray-300'}`} />
           ))}
         </span>
       </div>
 
       {/* Alerts */}
       {(msg.startsWith('❌') || msg.startsWith('⚠️')) && (
-        <Alert variant={msg.startsWith('❌') ? 'destructive' : undefined}
-          className={msg.startsWith('⚠️')
-            ? 'mb-4 border-yellow-400 bg-yellow-100 text-black' : 'mb-4'}>
+        <Alert
+          variant={msg.startsWith('❌') ? 'destructive' : undefined}
+          className={
+            msg.startsWith('⚠️')
+              ? 'mb-4 border-yellow-400 bg-yellow-100 text-black'
+              : 'mb-4'
+          }
+        >
           {msg}
         </Alert>
       )}
@@ -262,7 +285,7 @@ export default function Body() {
             selected={selected}
             onCardClick={click}
             pending={revealing}
-            pendingIndices={pendIdx}
+            pendingIndices={pendingIdx}
           />
         </motion.div>
       )}
@@ -280,7 +303,8 @@ export default function Body() {
           <motion.div className="fixed inset-0 flex items-center justify-center z-50"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}>
-            <motion.div initial={{ scale: 0.8, opacity: 0 }}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
@@ -299,7 +323,8 @@ export default function Body() {
           <motion.div className="fixed inset-0 flex items-center justify-center z-50"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}>
-            <motion.div initial={{ scale: 0.8, opacity: 0 }}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
