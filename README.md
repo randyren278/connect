@@ -6,27 +6,6 @@ It ships **100 % offline**: no external APIs, all curated data, and loads of
 sneaky cross-talk mechanics (homophones, prefix/suffix traps, multi-word
 phrases, ambiguous tokens…) to melt even puzzle veterans.
 
----
-
-## 🎮  Gameplay
-
-| Step | What happens |
-|------|--------------|
-| **1.** Hit **Play** ➜ a 4 × 4 grid of words appears. |  
-| **2.** Select **4** words you think form a valid group ⮕ **Submit**. |  
-| **3.** Correct 🟢 → those cards wave, lock, and reveal the theme. <br>Wrong 🔴 → you lose a “life” (4 total) and might see a hint (“⚠️ One away”). |  
-| **4.** Solve all four groups before your mistakes or sanity run out. |  
-| **5.** Fail?  Reveal answers or **Play Again** (themes won’t repeat for 10 games). |
-
-> **Heads-up:** With ~95 % probability each group secretly swaps in **one**
-> of:  
-> • a homophone _(KNIGHT vs NIGHT)_  
-> • a word that shares a killer prefix/suffix _(MOTION vs -ION group)_  
-> • a multi-word phrase _(“ORANGE JUICE”)_.  
-> Expect maximum ambiguity.
-
----
-
 ## ✨  Key Features
 
 | Feature | Description |
