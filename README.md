@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🔗  **Connections**  
 
-## Getting Started
+A hyper-challenging, NYT-style “Connections” clone built with **Next .js / React
+Server Components**, Tailwind CSS, and Framer-Motion.  
+It ships **100 % offline**: no external APIs, all curated data, and loads of
+sneaky cross-talk mechanics (homophones, prefix/suffix traps, multi-word
+phrases, ambiguous tokens…) to melt even puzzle veterans.
 
-First, run the development server:
+---
+
+## 🎮  Gameplay
+
+| Step | What happens |
+|------|--------------|
+| **1.** Hit **Play** ➜ a 4 × 4 grid of words appears. |  
+| **2.** Select **4** words you think form a valid group ⮕ **Submit**. |  
+| **3.** Correct 🟢 → those cards wave, lock, and reveal the theme. <br>Wrong 🔴 → you lose a “life” (4 total) and might see a hint (“⚠️ One away”). |  
+| **4.** Solve all four groups before your mistakes or sanity run out. |  
+| **5.** Fail?  Reveal answers or **Play Again** (themes won’t repeat for 10 games). |
+
+> **Heads-up:** With ~95 % probability each group secretly swaps in **one**
+> of:  
+> • a homophone _(KNIGHT vs NIGHT)_  
+> • a word that shares a killer prefix/suffix _(MOTION vs -ION group)_  
+> • a multi-word phrase _(“ORANGE JUICE”)_.  
+> Expect maximum ambiguity.
+
+---
+
+## ✨  Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **🗂️  All-local curated data** | 200 themes × 4 difficulties = 800 sets + 1,000 + ambiguous decoys. |
+| **🧩  No-repeat logic** | Never see the same theme or exact 4-word set for 10 full rounds. |
+| **💥  Wave animation** | Cards “pop” in a cascading wave when a set is solved (Framer-motion). |
+| **📱  Fully responsive** | Font `clamp()` + `break-words` keeps long phrases inside cards on tiny screens. |
+| **♿  Keyboard & screen-reader friendly** | Buttons focusable, semantic markup. |
+| **⚡  Zero external calls** | Works offline after first load; ideal for workshops or airplane coding. |
+
+---
+
+## 🛠️  Tech Stack
+
+| Layer | Lib / Tech |
+|-------|------------|
+| Front-end | **Next 13** (App router, RSC), **TypeScript**, **React 18** |
+| Styling  | **Tailwind CSS** + arbitrary values (`text-[clamp(...)]`) |
+| Animation| **Framer-motion** 6 |
+| State    | React hooks + tiny in-memory caches |
+| Data     | Pure JSON / TS files (no database, no REST) |
+
+---
+
+## 🚀  Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+git clone https://github.com/your-handle/connections-brutal.git
+cd connections-brutal
+pnpm install          # or yarn / npm
+pnpm dev              # http://localhost:3000
